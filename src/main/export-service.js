@@ -1,0 +1,233 @@
+'use strict';
+
+const { dialog } = require('electron');
+
+/**
+ * Category emoji mapping for reports.
+ */
+const CATEGORY_EMOJIS = {
+  security: '🔒',
+  performance: '⚡',
+  'code-quality': '🧹',
+  'test-coverage': '🧪',
+  architecture: '🏗️',
+};
+
+/**
+ * Severity emoji mapping.
+ */
+const SEVERITY_EMOJIS = {
+  critical: '🔴',
+  high: '🟠',
+  medium: '🟡',
+  low: '🟢',
+};
+
+/**
+ * Generate a Markdown report from analysis data.
+ * @param {Object} projectData - Project information
+ * @param {Array} analysisResults - Array of {category, score, issues[]}
+ * @param {Array} suggestions - Array of suggestion objects
+ * @returns {string} Complete Markdown string
+ */
+function exportToMarkdown(projectData, analysisResults, suggestions) {
+  const lines = [];
+
+  // Header
+  lines.push(`# 🔍 Scout Code Analysis Report`);
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  // Project info
+  lines.push(`📁 **Project:** ${projectData.name}`);
+  lines.push(`📅 **Analysis Date:** ${projectData.analysisDate}`);
+
+  const modeLabel = projectData.mode === 'deep' ? 'Deep Analysis' : 'Fast Analysis';
+  lines.push(`⚡ **Mode:** ${modeLabel}`);
+
+  if (projectData.selectedCategories && projectData.selectedCategories.length > 0) {
+    const catNames = projectData.selectedCategories.map((cat) => {
+      const emoji = CATEGORY_EMOJIS[cat] || '📊';
+      const name = cat.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      return `${emoji} ${name}`;
+    });
+    lines.push(`🎯 **Categories:** ${catNames.join(', ')}`);
+  }
+
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  // Category scores
+  lines.push('## 📊 Scores');
+  lines.push('');
+
+  if (analysisResults && analysisResults.length > 0) {
+    for (const result of analysisResults) {
+      const emoji = CATEGORY_EMOJIS[result.category] || '📊';
+      const name = result.category.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      const score = typeof result.score === 'number' ? result.score.toFixed(1) : '?';
+      const bar = generateScoreBar(result.score);
+      lines.push(`${emoji} **${name}**: ${score}/10 ${bar}`);
+    }
+  }
+
+  lines.push('');
+
+  // Overall score
+  const overallScore = typeof projectData.overallScore === 'number'
+    ? projectData.overallScore.toFixed(1)
+    : '?';
+  lines.push(`📊 **Overall Score: ${overallScore}/10**`);
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  // Issues
+  const allIssues = [];
+  if (analysisResults) {
+    for (const result of analysisResults) {
+      if (Array.isArray(result.issues)) {
+        allIssues.push(...result.issues);
+      }
+    }
+  }
+
+  if (allIssues.length > 0) {
+    lines.push('## ⚠️ Issues');
+    lines.push('');
+
+    // Group by severity
+    const bySeverity = { critical: [], high: [], medium: [], low: [] };
+    for (const issue of allIssues) {
+      const sev = (issue.severity || 'medium').toLowerCase();
+      if (bySeverity[sev]) {
+        bySeverity[sev].push(issue);
+      } else {
+        bySeverity.medium.push(issue);
+      }
+    }
+
+    for (const [severity, issues] of Object.entries(bySeverity)) {
+      if (issues.length === 0) continue;
+
+      const emoji = SEVERITY_EMOJIS[severity] || '⚪';
+      const label = severity.charAt(0).toUpperCase() + severity.slice(1);
+      lines.push(`### ${emoji} ${label} (${issues.length})`);
+      lines.push('');
+
+      for (const issue of issues) {
+        const file = issue.file || 'Unknown file';
+        const line = issue.line ? `:${issue.line}` : '';
+        const category = issue.category
+          ? `[${issue.category.replace(/-/g, ' ')}]`
+          : '';
+        lines.push(`- **${file}${line}** ${category} → ${issue.message}`);
+
+        if (issue.code) {
+          lines.push(`  \`\`\`\n  ${issue.code}\n  \`\`\``);
+        }
+      }
+
+      lines.push('');
+    }
+
+    lines.push('---');
+    lines.push('');
+  }
+
+  // Suggestions
+  if (suggestions && suggestions.length > 0) {
+    lines.push('## 💡 Suggestions');
+    lines.push('');
+
+    for (let i = 0; i < suggestions.length; i++) {
+      const s = suggestions[i];
+      const file = s.filePath || s.file || 'General';
+      const category = s.category
+        ? `[${s.category.replace(/-/g, ' ')}]`
+        : '';
+
+      lines.push(`### ${i + 1}. ${file} ${category}`);
+      lines.push('');
+      lines.push(s.message || 'No description');
+      lines.push('');
+
+      if (s.originalCode) {
+        lines.push('**Current Code:**');
+        lines.push('```');
+        lines.push(s.originalCode);
+        lines.push('```');
+        lines.push('');
+      }
+
+      if (s.suggestedCode) {
+        lines.push('**Suggested Code:**');
+        lines.push('```');
+        lines.push(s.suggestedCode);
+        lines.push('```');
+        lines.push('');
+      }
+    }
+
+    lines.push('---');
+    lines.push('');
+  }
+
+  // Footer
+  lines.push(`*Generated by Scout Code Analysis on ${new Date().toISOString().split('T')[0]}*`);
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate a visual score bar.
+ * @param {number} score - Score from 0 to 10
+ * @returns {string}
+ */
+function generateScoreBar(score) {
+  if (typeof score !== 'number') return '';
+  const filled = Math.round(score);
+  const empty = 10 - filled;
+  return '█'.repeat(filled) + '░'.repeat(empty);
+}
+
+/**
+ * Open a save dialog and write the report.
+ * @param {string} markdown - The markdown content
+ * @param {string} projectName - Project name for default filename
+ * @returns {Promise<{canceled: boolean, filePath?: string}>}
+ */
+async function saveReport(markdown, projectName) {
+  const date = new Date().toISOString().split('T')[0];
+  const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const defaultFileName = `${safeName}_${date}.md`;
+
+  const result = await dialog.showSaveDialog({
+    title: 'Save Analysis Report',
+    defaultPath: defaultFileName,
+    filters: [
+      { name: 'Markdown Files', extensions: ['md'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
+  const fs = require('fs');
+  try {
+    fs.writeFileSync(result.filePath, markdown, 'utf-8');
+    return { canceled: false, filePath: result.filePath };
+  } catch (err) {
+    throw new Error(`Failed to save report: ${err.message}`);
+  }
+}
+
+module.exports = {
+  exportToMarkdown,
+  saveReport,
+};
