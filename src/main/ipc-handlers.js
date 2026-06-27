@@ -121,7 +121,46 @@ function registerIpcHandlers(mainWindow) {
   });
 
   ipcMain.handle('settings:save', async (_event, { settings }) => {
-    return database.saveSettings(settings);
+    const saved = database.saveSettings(settings);
+
+    // Auto-download selected models if missing from Ollama
+    (async () => {
+      try {
+        await ollamaInstaller.ensureOllamaRunning();
+        const availableModels = await ollamaService.listModels();
+        const modelNames = availableModels.map((m) => m.name);
+
+        const modelsToCheck = [settings.fastModeModel, settings.deepModeModel].filter(Boolean);
+        for (const targetModel of modelsToCheck) {
+          const hasModel = modelNames.some((n) => n === targetModel || n.startsWith(targetModel));
+          if (!hasModel) {
+            console.log(`[Settings] Model ${targetModel} not found. Triggering background auto-download.`);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('analysis:progress', {
+                percent: 0,
+                currentFile: `Model '${targetModel}' otomatik indiriliyor...`,
+                fileIndex: 0,
+                totalFiles: 100,
+              });
+            }
+            await ollamaService.pullModel(targetModel, (prog) => {
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('analysis:progress', {
+                  percent: prog.percent || 0,
+                  currentFile: `Model '${targetModel}' otomatik indiriliyor (${prog.status})...`,
+                  fileIndex: 0,
+                  totalFiles: 100,
+                });
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Settings] Failed to auto-download selected model:', err.message);
+      }
+    })();
+
+    return saved;
   });
 
   // ──────────────────────────────────

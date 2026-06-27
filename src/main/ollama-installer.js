@@ -226,9 +226,11 @@ async function installOllamaLinux(onProgress) {
  * @param {Function} onProgress - Callback: ({step, percent, message})
  */
 async function pullRequiredModels(onProgress) {
+  const database = require('./database');
+  const settings = database.getSettings();
   const models = [
-    { name: 'deepseek-coder:6.7b', label: 'Fast Mode model' },
-    { name: 'deepseek-coder-v2:16b', label: 'Deep Mode model' },
+    { name: settings.fastModeModel || 'deepseek-coder:6.7b', label: 'Fast Mode model' },
+    { name: settings.deepModeModel || 'deepseek-coder-v2:16b', label: 'Deep Mode model' },
   ];
 
   for (let i = 0; i < models.length; i++) {
