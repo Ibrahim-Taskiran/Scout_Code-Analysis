@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function ChatbotPanel() {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: 'Merhaba! Ben Scout AI kod asistanınız. Kodlarınız veya analiz sonuçlarınız hakkında bana soru sorabilirsiniz.' }
+    { role: 'assistant', text: t('chatbot.initialMsg') }
   ]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -64,7 +66,7 @@ export default function ChatbotPanel() {
       await window.electronAPI.sendChatMessage({ message: query });
     } catch (err) {
       setIsThinking(false);
-      setMessages((prev) => [...prev, { role: 'assistant', text: `Hata: ${err.message}` }]);
+      setMessages((prev) => [...prev, { role: 'assistant', text: `Error: ${err.message}` }]);
     }
   };
 
@@ -95,16 +97,16 @@ export default function ChatbotPanel() {
         onClick={() => setIsOpen(!isOpen)}
         style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '1.4rem' }}>🤖</span>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Scout AI Geliştirici Asistanı</h3>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>{t('chatbot.title')}</h3>
         </div>
-        <span className="font-mono text-muted" style={{ fontSize: '0.85rem' }}>{isOpen ? '▲ DARALT' : '▼ GENİŞLET'}</span>
+        <span className="font-mono text-muted" style={{ fontSize: '0.85rem' }}>{isOpen ? t('chatbot.collapse') : t('chatbot.expand')}</span>
       </div>
 
       {isOpen && (
@@ -141,7 +143,7 @@ export default function ChatbotPanel() {
             ))}
             {isThinking && (
               <div className="text-muted font-mono" style={{ fontSize: '0.8rem', fontStyle: 'italic' }}>
-                Yazıyor...
+                {t('chatbot.writing')}
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -150,7 +152,7 @@ export default function ChatbotPanel() {
           {/* Quick suggestions chips */}
           {messages.length <= 2 && (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {['Güvenlik skorumu nasıl artırabilirim?', 'En kritik sorun nedir?'].map((chip, i) => (
+              {[t('chatbot.suggest1'), t('chatbot.suggest2')].map((chip, i) => (
                 <button
                   key={i}
                   onClick={() => handleSend(chip)}
@@ -179,16 +181,16 @@ export default function ChatbotPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Sorunuzu buraya yazın..."
+              placeholder={t('chatbot.placeholder')}
               disabled={isThinking}
             />
             {isThinking ? (
               <button className="btn btn-danger" onClick={handleStop}>
-                ⏹️ Durdur
+                {t('chatbot.stop')}
               </button>
             ) : (
               <button className="btn btn-primary" onClick={() => handleSend()}>
-                Gönder
+                {t('chatbot.send')}
               </button>
             )}
           </div>

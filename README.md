@@ -38,7 +38,7 @@
 
 ## 🛠️ Teknolojik Mimari (Tech Stack)
 
-- **Frontend & UI:** React 18, Vite, React Router v6, Chart.js / React-Chartjs-2 (Radar & Bar Grafikleri)
+- **Frontend & UI:** React 18, Vite, React Router v6, Recharts (Radar & Bar Grafikleri)
 - **Desktop Framework:** Electron 34, IPC (Inter-Process Communication)
 - **AI Engine & Service:** Ollama REST API, Dynamic Stream Reader, AbortController
 - **Styling:** Custom Vanilla CSS Design Tokens (Red & Black Theme, Geist & JetBrains Mono Fonts)

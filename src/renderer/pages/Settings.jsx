@@ -15,7 +15,7 @@ const RECOMMENDED_MODELS = [
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const { getSettings, saveSettings } = useDatabase();
 
   const [fastModel, setFastModel] = useState('qwen2.5-coder:1.5b');
@@ -63,7 +63,7 @@ export default function Settings() {
       excludedFolders: JSON.stringify(excludedFolders),
       excludedFileTypes: JSON.stringify(excludedFiles),
     });
-    setSavedMsg('Ayarlar başarıyla kaydedildi!');
+    setSavedMsg(t('settings.saved'));
     setTimeout(() => setSavedMsg(''), 3000);
   };
 
@@ -95,7 +95,7 @@ export default function Settings() {
   availableModels.forEach((m) => {
     const name = m.name || m;
     if (!modelOptionsMap.has(name)) {
-      modelOptionsMap.set(name, `📦 ${name} (Yüklü Yerel Model)`);
+      modelOptionsMap.set(name, `📦 ${name}`);
     }
   });
 
@@ -108,20 +108,20 @@ export default function Settings() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <span style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Local AI Architect</span>
           <div style={{ display: 'flex', gap: '16px', fontSize: '0.9rem' }} className="text-muted">
-            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Overview</span>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>System Settings</span>
+            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>{t('nav.overview')}</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{t('nav.systemSettings')}</span>
           </div>
         </div>
         <button className="btn btn-primary" onClick={handleSave}>
-          💾 Save Settings
+          {t('settings.save')}
         </button>
       </header>
 
       {/* Main Content */}
       <div className="animate-fade-in" style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>Engine & System Settings</h1>
-          <p className="text-muted">Uygulama tercihlerini ve AI parametrelerini özelleştirin.</p>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{t('settings.title')}</h1>
+          <p className="text-muted">{t('settings.subtitle')}</p>
         </div>
 
         {savedMsg && (
@@ -132,20 +132,20 @@ export default function Settings() {
 
         {/* Appearance */}
         <div className="card" style={{ backgroundColor: 'var(--surface-low)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Appearance & Language</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('settings.appearance')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>App Language</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>{t('settings.language')}</label>
               <select className="select" value={language} onChange={(e) => setLanguage(e.target.value)}>
                 <option value="tr">Türkçe</option>
                 <option value="en">English</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Theme Mode</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>{t('settings.theme')}</label>
               <select className="select" value={theme} onChange={(e) => setTheme(e.target.value)}>
-                <option value="dark">Dark (Red & Black)</option>
-                <option value="light">Light</option>
+                <option value="dark">{t('settings.dark')}</option>
+                <option value="light">{t('settings.light')}</option>
               </select>
             </div>
           </div>
@@ -153,10 +153,10 @@ export default function Settings() {
 
         {/* AI Models Selection Dropdowns */}
         <div className="card" style={{ backgroundColor: 'var(--surface-low)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Ollama AI Models (Dropdown Selection)</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('settings.aiModels')}</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Fast Mode Model</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>{t('settings.fastModel')}</label>
               <select className="select font-mono" value={fastModel} onChange={(e) => setFastModel(e.target.value)}>
                 {modelOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -166,7 +166,7 @@ export default function Settings() {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Deep Mode Model</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>{t('settings.deepModel')}</label>
               <select className="select font-mono" value={deepModel} onChange={(e) => setDeepModel(e.target.value)}>
                 {modelOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -180,13 +180,13 @@ export default function Settings() {
 
         {/* File Exclusions */}
         <div className="card" style={{ backgroundColor: 'var(--surface-low)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Scanner Exclusions</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('settings.exclusions')}</h3>
           
           <div>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Excluded Folders</label>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>{t('settings.excludedFolders')}</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <input className="input font-mono" value={folderInput} onChange={(e) => setFolderInput(e.target.value)} placeholder="Örn: secrets" />
-              <button className="btn btn-secondary" onClick={addFolder}>Add</button>
+              <button className="btn btn-secondary" onClick={addFolder}>{t('settings.add')}</button>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {excludedFolders.map((f) => (
@@ -198,10 +198,10 @@ export default function Settings() {
           </div>
 
           <div style={{ marginTop: '12px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Excluded Extensions</label>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>{t('settings.excludedFiles')}</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <input className="input font-mono" value={fileInput} onChange={(e) => setFileInput(e.target.value)} placeholder="Örn: .log" />
-              <button className="btn btn-secondary" onClick={addFile}>Add</button>
+              <button className="btn btn-secondary" onClick={addFile}>{t('settings.add')}</button>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {excludedFiles.map((f) => (
@@ -219,7 +219,7 @@ export default function Settings() {
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-            <span>Settings Loaded</span>
+            <span>{t('settings.statusLoaded')}</span>
           </div>
         </div>
         <div>v2.4.0-stable</div>

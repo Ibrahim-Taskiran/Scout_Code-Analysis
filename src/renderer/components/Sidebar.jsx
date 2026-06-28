@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAnalysis } from '../hooks/useAnalysis';
+import ScoutLogo from './ScoutLogo';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -49,17 +50,16 @@ export default function Sidebar() {
               style={{
                 width: '40px',
                 height: '40px',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 backgroundColor: 'var(--primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#FFFFFF',
-                boxShadow: '0 0 15px rgba(255,0,0,0.3)',
-                fontSize: '1.2rem',
+                boxShadow: '0 0 18px rgba(255,0,0,0.4)',
               }}
             >
-              ⚡
+              <ScoutLogo size={24} />
             </div>
             <div>
               <h2 style={{ fontSize: '1.2rem', fontWeight: 800, lineHeight: 1, color: 'var(--text-primary)' }}>
@@ -75,7 +75,7 @@ export default function Sidebar() {
           onClick={() => setCollapsed(!collapsed)}
           className="btn btn-secondary"
           style={{ padding: '6px 10px', fontSize: '0.85rem' }}
-          title={collapsed ? 'Genişlet' : 'Daralt'}
+          title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
         >
           {collapsed ? '❯' : '❮'}
         </button>
@@ -148,13 +148,13 @@ export default function Sidebar() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span>Engine Status</span>
+              <span>{t('sidebar.engineStatus')}</span>
               <span style={{ color: isAnalyzing ? 'var(--primary)' : 'var(--success)', fontWeight: 700 }}>
-                {isAnalyzing ? `Scanning (${progress.percent}%)` : 'Active'}
+                {isAnalyzing ? `${t('sidebar.scanning')} (${progress.percent}%)` : t('sidebar.active')}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Default Model</span>
+              <span>{t('sidebar.defaultModel')}</span>
               <span style={{ color: 'var(--primary)', fontWeight: 700 }}>deepseek</span>
             </div>
           </div>

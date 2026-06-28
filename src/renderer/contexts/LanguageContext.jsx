@@ -18,7 +18,14 @@ const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguageState] = useState(i18n.language);
-  const { t } = useTranslation();
+
+  useEffect(() => {
+    const handleLangChange = (lng) => {
+      setLanguageState(lng);
+    };
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
 
   const setLanguage = (lang) => {
     i18n.changeLanguage(lang);
@@ -27,10 +34,18 @@ export const LanguageProvider = ({ children }) => {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage }}>
       {children}
     </LanguageContext.Provider>
   );
 };
 
-export const useLanguage = () => useContext(LanguageContext);
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  const { t, i18n: currentI18n } = useTranslation();
+  return {
+    ...context,
+    t,
+    language: currentI18n.language || context?.language || 'tr',
+  };
+};

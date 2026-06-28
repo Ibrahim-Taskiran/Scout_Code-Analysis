@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CategorySelector from '../components/CategorySelector';
 import ProgressBar from '../components/ProgressBar';
 import { useAnalysis } from '../hooks/useAnalysis';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Analysis() {
   const [folderPath, setFolderPath] = useState('');
@@ -11,6 +12,7 @@ export default function Analysis() {
 
   const navigate = useNavigate();
   const { isAnalyzing, progress, error, completedResults, startAnalysis, cancelAnalysis } = useAnalysis();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (completedResults) {
@@ -38,14 +40,14 @@ export default function Analysis() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <span style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Local AI Architect</span>
           <div style={{ display: 'flex', gap: '16px', fontSize: '0.9rem' }} className="text-muted">
-            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Overview</span>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Analysis Engine</span>
-            <span onClick={() => navigate('/settings')} style={{ cursor: 'pointer' }}>Settings</span>
+            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>{t('nav.overview')}</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{t('nav.analysisEngine')}</span>
+            <span onClick={() => navigate('/settings')} style={{ cursor: 'pointer' }}>{t('nav.settings')}</span>
           </div>
         </div>
         {!isAnalyzing && (
           <button className="btn btn-primary" disabled={!folderPath || categories.length === 0} onClick={handleStart}>
-            ▶ Run Scan
+            {t('nav.runScan')}
           </button>
         )}
       </header>
@@ -55,29 +57,29 @@ export default function Analysis() {
         {!isAnalyzing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
-              <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>Start Code Architecture Scan</h1>
-              <p className="text-muted">Projenizi taramak ve AI analizini başlatmak için ayarları yapılandırın.</p>
+              <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{t('analysis.startTitle')}</h1>
+              <p className="text-muted">{t('analysis.startSubtitle')}</p>
             </div>
 
             {/* Step 1: Folder Selection */}
             <div className="card" style={{ backgroundColor: 'var(--surface-low)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>1. Select Project Folder</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('analysis.step1Title')}</h3>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <input
                   className="input font-mono"
                   value={folderPath}
                   readOnly
-                  placeholder="Klasör seçilmedi..."
+                  placeholder={t('analysis.noFolder')}
                 />
                 <button className="btn btn-secondary" onClick={handleSelectFolder} style={{ flexShrink: 0 }}>
-                  📁 Browse Folder
+                  {t('analysis.browseFolder')}
                 </button>
               </div>
             </div>
 
             {/* Step 2: Mode Selection */}
             <div className="card" style={{ backgroundColor: 'var(--surface-low)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>2. Select Analysis Mode</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('analysis.step2Title')}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div
                   onClick={() => setMode('fast')}
@@ -90,11 +92,11 @@ export default function Analysis() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>⚡ FAST MODE</span>
-                    <span className="badge badge-gray font-mono">FAST SCAN</span>
+                    <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>⚡ {t('analysis.modeFast').toUpperCase()}</span>
+                    <span className="badge badge-gray font-mono">{t('analysis.fastScan')}</span>
                   </div>
                   <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-                    Summary scan for security & performance. Auto-downloads missing models automatically.
+                    {t('analysis.fastDesc')}
                   </p>
                 </div>
 
@@ -109,11 +111,11 @@ export default function Analysis() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--primary)' }}>🔍 DEEP MODE</span>
-                    <span className="badge badge-red font-mono">DEEP ARCHITECT</span>
+                    <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--primary)' }}>🔍 {t('analysis.modeDeep').toUpperCase()}</span>
+                    <span className="badge badge-red font-mono">{t('analysis.deepArchitect')}</span>
                   </div>
                   <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-                    In-depth architectural scan with live Auto-Fix code correction. Auto-downloads missing models.
+                    {t('analysis.deepDesc')}
                   </p>
                 </div>
               </div>
@@ -148,9 +150,9 @@ export default function Analysis() {
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-            <span>Status: Ready</span>
+            <span>{t('analysis.statusReady')}</span>
           </div>
-          <span>Engine: Active</span>
+          <span>{t('analysis.engineActive')}</span>
         </div>
         <div>v2.4.0-stable</div>
       </footer>
