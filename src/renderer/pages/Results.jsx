@@ -21,14 +21,6 @@ const SEVERITY_RANK = {
   low: 1,
 };
 
-function getPointImpact(severity) {
-  const sev = (severity || 'medium').toLowerCase();
-  if (sev === 'critical') return '+2.5 Puan';
-  if (sev === 'high') return '+1.5 Puan';
-  if (sev === 'medium') return '+0.7 Puan';
-  return '+0.3 Puan';
-}
-
 function formatTurkishMessage(msg) {
   if (!msg) return '';
   let str = msg;
@@ -61,14 +53,15 @@ function formatTurkishMessage(msg) {
 }
 
 /**
- * Group issues inside a category into intuitive sub-category mini-folders.
+ * Group issues inside a category into a 3-level hierarchy:
+ * Category -> Main Sub-Category (e.g. Genel İyileştirmeler) -> Problem Group (e.g. eval()) -> Files List
  */
 function groupSubCategories(items, categoryId) {
-  const groups = {};
+  const subCatGroups = {};
 
   items.forEach((item) => {
     const msg = (item.message || '').toLowerCase();
-    const file = (item.filePath || item.file || '').toLowerCase();
+    const formattedMsg = formatTurkishMessage(item.message || 'Genel İyileştirme Önerisi');
     let subName = 'Genel İyileştirmeler';
 
     if (categoryId === 'security') {
@@ -76,32 +69,64 @@ function groupSubCategories(items, categoryId) {
         subName = 'Girdi Doğrulama & Enjeksiyon';
       } else if (msg.includes('error') || msg.includes('exception') || msg.includes('try') || msg.includes('catch') || msg.includes('handling')) {
         subName = 'Hata & İstisna Yönetimi';
-      } else if (msg.includes('null') || msg.includes('image') || msg.includes('load') || msg.includes('checkpoint')) {
-        subName = 'Veri & Dosya Kontrolleri';
+      } else if (msg.includes('eval') || msg.includes('secret') || msg.includes('password') || msg.includes('key') || msg.includes('.env') || msg.includes('console')) {
+        subName = 'Genel İyileştirmeler & Hassas Sızıntılar';
       }
     } else if (categoryId === 'performance') {
-      if (msg.includes('loop') || msg.includes('transform') || msg.includes('efficient') || msg.includes('augmentation')) {
+      if (msg.includes('loop') || msg.includes('transform') || msg.includes('efficient')) {
         subName = 'Döngü & Algoritma Verimliliği';
-      } else if (msg.includes('memory') || msg.includes('cache') || msg.includes('resource')) {
-        subName = 'Bellek & Kaynak Optimize';
+      } else if (msg.includes('memory') || msg.includes('cache') || msg.includes('sync') || msg.includes('fs.')) {
+        subName = 'Bellek & Sistem Kaynakları';
+      }
+    } else if (categoryId === 'codeQuality') {
+      if (msg.includes('fonksiyon') || msg.includes('function') || msg.includes('length')) {
+        subName = 'Fonksiyon & Kod Yapısı';
+      } else if (msg.includes('tekrar') || msg.includes('duplicat')) {
+        subName = 'Kod Tekrarı (Duplication)';
+      } else if (msg.includes('import') || msg.includes(' unused') || msg.includes('kullanılmayan')) {
+        subName = 'Kullanılmayan Bildirimler';
       }
     } else if (categoryId === 'architecture') {
-      if (msg.includes('dependency') || msg.includes('injection') || msg.includes('coupling') || msg.includes('module')) {
+      if (msg.includes('dependency') || msg.includes('döngüsel') || msg.includes('circular')) {
         subName = 'Katmanlı Mimari & Bağımlılıklar';
-      }
-    } else {
-      // Group by file parent directory or module name
-      const parts = file.split('/');
-      if (parts.length > 1) {
-        subName = `Modül: ${parts[0]}`;
+      } else if (msg.includes('readme') || msg.includes('dosya') || msg.includes('adlandırma')) {
+        subName = 'Proje Düzeni & Yapılandırma';
       }
     }
 
-    if (!groups[subName]) groups[subName] = [];
-    groups[subName].push(item);
+    if (!subCatGroups[subName]) {
+      subCatGroups[subName] = {
+        name: subName,
+        totalCount: 0,
+        problemMap: {},
+      };
+    }
+
+    subCatGroups[subName].totalCount++;
+
+    if (!subCatGroups[subName].problemMap[formattedMsg]) {
+      subCatGroups[subName].problemMap[formattedMsg] = {
+        title: formattedMsg,
+        severity: (item.severity || 'medium').toLowerCase(),
+        list: [],
+      };
+    }
+    subCatGroups[subName].problemMap[formattedMsg].list.push(item);
   });
 
-  return Object.entries(groups).map(([name, list]) => ({ name, list }));
+  return Object.values(subCatGroups).map((subGroup) => {
+    const problems = Object.values(subGroup.problemMap).sort((a, b) => {
+      const rankA = SEVERITY_RANK[a.severity] || 2;
+      const rankB = SEVERITY_RANK[b.severity] || 2;
+      if (rankB !== rankA) return rankB - rankA;
+      return b.list.length - a.list.length;
+    });
+    return {
+      name: subGroup.name,
+      totalCount: subGroup.totalCount,
+      problems,
+    };
+  });
 }
 
 export default function Results() {
@@ -154,6 +179,16 @@ export default function Results() {
   const handleExport = async () => {
     if (!window.electronAPI) return;
     await window.electronAPI.exportReport(projectId);
+  };
+
+  const handleExportAiPrompt = async () => {
+    if (!window.electronAPI) return;
+    await window.electronAPI.exportAiPrompt(projectId);
+  };
+
+  const handleExportPdf = async () => {
+    if (!window.electronAPI) return;
+    await window.electronAPI.exportPdf(projectId);
   };
 
   const handleFixClick = async (suggestion) => {
@@ -286,9 +321,59 @@ export default function Results() {
             <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Rapor Özeti</span>
           </div>
         </div>
-        <button className="btn btn-primary" onClick={handleExport}>
-          📥 Raporu İndir (.md)
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            className="btn"
+            onClick={handleExportPdf}
+            title="Ekip arkadaşlarınızla paylaşabileceğiniz şık PDF özet raporu (.pdf)"
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#F87171',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+            }}
+          >
+            📕 Özet Rapor (.pdf)
+          </button>
+          <button
+            className="btn"
+            onClick={handleExport}
+            title="İnsanlar için hazırlanmış metin özet raporu (.md)"
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              color: '#60A5FA',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+            }}
+          >
+            📄 Özet Rapor (.md)
+          </button>
+          <button
+            className="btn"
+            onClick={handleExportAiPrompt}
+            title="Yapay zekaya (ChatGPT/Claude/Gemini) verip tüm hataları çözdürmek için teknik prompt raporu (.md)"
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              color: '#34D399',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+            }}
+          >
+            🤖 AI Prompt (.md)
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -369,10 +454,10 @@ export default function Results() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Kategorilere Göre Tespit Edilen Sorunlar</h3>
-              <p className="text-muted" style={{ fontSize: '0.85rem' }}>Sorunlar önem sırasına ve alt kategorilere göre gruplanmıştır. Yanlarında beklenen puan katkısı gösterilmektedir.</p>
+              <p className="text-muted" style={{ fontSize: '0.85rem' }}>Sorunlar önem sırasına ve tespit edilen hata türlerine göre gruplanmıştır.</p>
             </div>
-            <span className={`badge ${isDeepMode ? 'badge-red' : 'badge-gray'}`}>
-              {isDeepMode ? 'DERİN MOD — OTOMATİK DÜZELTME DESTEKLİ' : 'HIZLI MOD — BOT DESTEKLİ'}
+            <span className={`badge ${isDeepMode ? 'badge-red' : 'badge-gray'}`} style={project.mode === 'quick' ? { backgroundColor: 'rgba(0,230,118,0.2)', color: '#00E676' } : {}}>
+              {isDeepMode ? 'DERİN MOD — OTOMATİK DÜZELTME DESTEKLİ' : project.mode === 'quick' ? 'QUICK SCAN (REGEX) — ANINDA TANILAMA' : 'HIZLI MOD — BOT DESTEKLİ'}
             </span>
           </div>
 
@@ -425,10 +510,10 @@ export default function Results() {
                       </div>
                     </div>
                   ) : (
-                    /* Render Collapsible Sub-Category Accordions */
+                    /* Render 2-Level Nested Collapsible Accordions (Main Sub-Category -> Problem Group -> Files) */
                     subGroups.map((sub, sIdx) => {
-                      const groupKey = `${cat.id}-${sub.name}`;
-                      const isExpanded = openSubCategories[groupKey] === true; // default collapsed (closed)
+                      const mainGroupKey = `${cat.id}-${sub.name}`;
+                      const isMainExpanded = openSubCategories[mainGroupKey] !== false; // default open (expanded)
 
                       return (
                         <div
@@ -440,9 +525,9 @@ export default function Results() {
                             overflow: 'hidden',
                           }}
                         >
-                          {/* Accordion Header */}
+                          {/* Level 2: Main Sub-Category Accordion Header */}
                           <div
-                            onClick={() => toggleSubCategoryOpen(groupKey)}
+                            onClick={() => toggleSubCategoryOpen(mainGroupKey)}
                             style={{
                               padding: '10px 12px',
                               backgroundColor: 'var(--surface-highest)',
@@ -451,84 +536,136 @@ export default function Results() {
                               justify: 'space-between',
                               alignItems: 'center',
                               userSelect: 'none',
-                              fontSize: '0.82rem',
-                              fontWeight: 700,
+                              borderBottom: isMainExpanded ? '1px solid var(--glass-border)' : 'none',
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>{isExpanded ? '▼' : '▶'}</span>
-                              <span>{sub.name}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 800 }}>
+                              <span>{isMainExpanded ? '▼' : '▶'}</span>
+                              <span>📂 {sub.name}</span>
                             </div>
-                            <span className="badge badge-red font-mono" style={{ fontSize: '0.65rem' }}>{sub.list.length}</span>
+                            <span className="badge badge-red font-mono" style={{ fontSize: '0.68rem' }}>
+                              {sub.totalCount} sorun
+                            </span>
                           </div>
 
-                          {/* Accordion Items List */}
-                          {isExpanded && (
+                          {/* Level 2 Body: List of Problem Groups */}
+                          {isMainExpanded && (
                             <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                              {sub.list.map((item) => {
-                                const isSelected = selectedIssues.some((s) => s._id === item._id);
-                                const impact = getPointImpact(item.severity);
+                              {sub.problems.map((prob, pIdx) => {
+                                const probGroupKey = `${cat.id}-${sub.name}-${prob.title}`;
+                                const isProbExpanded = openSubCategories[probGroupKey] === true; // default collapsed for compact view
+                                const sevColor = prob.severity === 'critical' ? 'badge-red' : prob.severity === 'high' ? 'badge-red' : 'badge-gray';
 
                                 return (
                                   <div
-                                    key={item._id}
+                                    key={pIdx}
                                     style={{
-                                      padding: '10px',
+                                      border: '1px solid var(--glass-border)',
                                       borderRadius: 'var(--radius-sm)',
-                                      backgroundColor: isSelected ? 'rgba(255, 0, 0, 0.15)' : 'var(--surface-lowest)',
-                                      border: isSelected ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '8px',
-                                      fontSize: '0.82rem',
+                                      backgroundColor: 'var(--surface-lowest)',
+                                      overflow: 'hidden',
                                     }}
                                   >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        {isDeepMode && (
-                                          <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => toggleSelectIssue(item)}
-                                            style={{ cursor: 'pointer', accentColor: 'var(--primary)' }}
-                                          />
-                                        )}
-                                        <span className="badge badge-red font-mono" style={{ fontSize: '0.6rem' }}>
-                                          {(item.severity || 'ORTA').toUpperCase()}
+                                    {/* Level 3: Problem Group Accordion Header */}
+                                    <div
+                                      onClick={() => toggleSubCategoryOpen(probGroupKey)}
+                                      style={{
+                                        padding: '8px 10px',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '6px',
+                                        userSelect: 'none',
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700 }}>
+                                          <span>{isProbExpanded ? '▼' : '▶'}</span>
+                                          <span className={`badge ${sevColor} font-mono`} style={{ fontSize: '0.58rem', padding: '1px 4px' }}>
+                                            {(prob.severity || 'medium').toUpperCase()}
+                                          </span>
+                                        </div>
+                                        <span className="badge badge-gray font-mono" style={{ fontSize: '0.65rem', backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                                          {prob.list.length} dosya
                                         </span>
                                       </div>
-                                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--success)' }}>
-                                        {impact}
-                                      </span>
+                                      <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', lineHeight: 1.3, fontWeight: 600, paddingLeft: '14px' }}>
+                                        {prob.title}
+                                      </div>
                                     </div>
 
-                                    <div className="font-mono text-muted" style={{ fontSize: '0.73rem', wordBreak: 'break-all', fontWeight: 600 }}>
-                                      📄 {item.filePath || item.file}
-                                    </div>
+                                    {/* Level 4: List of Files where this problem occurs */}
+                                    {isProbExpanded && (
+                                      <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--glass-border)', backgroundColor: 'var(--surface-high)' }}>
+                                        {prob.list.map((item) => {
+                                          const isSelected = selectedIssues.some((s) => s._id === item._id);
 
-                                    <div style={{ color: 'var(--text-primary)', lineHeight: '1.4', fontSize: '0.8rem' }}>
-                                      {formatTurkishMessage(item.message)}
-                                    </div>
+                                          return (
+                                            <div
+                                              key={item._id}
+                                              style={{
+                                                padding: '8px',
+                                                borderRadius: 'var(--radius-sm)',
+                                                backgroundColor: isSelected ? 'rgba(255, 0, 0, 0.15)' : 'var(--surface-lowest)',
+                                                border: isSelected ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '6px',
+                                                fontSize: '0.8rem',
+                                              }}
+                                            >
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                  {isDeepMode && (
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isSelected}
+                                                      onChange={() => toggleSelectIssue(item)}
+                                                      style={{ cursor: 'pointer', accentColor: 'var(--primary)' }}
+                                                    />
+                                                  )}
+                                                  <span className="font-mono text-muted" style={{ fontSize: '0.73rem', wordBreak: 'break-all', fontWeight: 600 }}>
+                                                    📄 {item.filePath || item.file}
+                                                  </span>
+                                                </div>
+                                                {(item.lineNumber || item.line) && (
+                                                  <span className="font-mono text-muted" style={{ fontSize: '0.68rem' }}>
+                                                    Satır: {item.lineNumber || item.line}
+                                                  </span>
+                                                )}
+                                              </div>
 
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
-                                      {isDeepMode ? (
-                                        <button
-                                          className="btn btn-secondary"
-                                          onClick={() => handleFixClick(item)}
-                                          style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                                        >
-                                          🛠️ Düzelt
-                                        </button>
-                                      ) : (
-                                        <button
-                                          className="btn btn-secondary"
-                                          onClick={() => handleAskChatbot(item)}
-                                          style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                                        >
-                                          💬 Bot'a Sor
-                                        </button>
-                                      )}
-                                    </div>
+                                              {item.originalCode && (
+                                                <div className="font-mono" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(0,0,0,0.3)', padding: '4px 6px', borderRadius: '4px', color: 'var(--text-muted)', overflowX: 'auto' }}>
+                                                  {item.originalCode}
+                                                </div>
+                                              )}
+
+                                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                                                {isDeepMode ? (
+                                                  <button
+                                                    className="btn btn-secondary"
+                                                    onClick={() => handleFixClick(item)}
+                                                    style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                                                  >
+                                                    🛠️ Düzelt
+                                                  </button>
+                                                ) : (
+                                                  <button
+                                                    className="btn btn-secondary"
+                                                    onClick={() => handleAskChatbot(item)}
+                                                    style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                                                  >
+                                                    💬 Bot'a Sor
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}

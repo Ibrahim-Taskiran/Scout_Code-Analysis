@@ -10,9 +10,11 @@ export default function ProgressBar({ percent = 0, currentFile = '', fileIndex =
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="badge badge-red">{mode.toUpperCase()} MODE</span>
+            <span className={`badge ${mode === 'quick' ? 'badge-gray' : mode === 'deep' ? 'badge-red' : 'badge-gray'}`} style={mode === 'quick' ? { backgroundColor: 'rgba(0,230,118,0.2)', color: '#00E676' } : {}}>
+              {mode.toUpperCase()} MODE
+            </span>
             <span className="font-mono text-muted" style={{ fontSize: '0.85rem' }}>
-              {modelName || (mode === 'deep' ? 'deepseek-coder-v2:16b' : 'deepseek-coder:6.7b')}
+              {mode === 'quick' ? 'Static Regex Engine (No AI)' : modelName || (mode === 'deep' ? 'deepseek-coder-v2:16b' : 'deepseek-coder:6.7b')}
             </span>
           </div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{t('analysis.inProgress')}</h1>

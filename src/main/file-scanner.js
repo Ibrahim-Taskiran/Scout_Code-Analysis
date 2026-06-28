@@ -103,8 +103,9 @@ function walkDirectory(dirPath, basePath, excludedFolderSet, excludedExtSet, fil
     const fullPath = path.join(dirPath, entry.name);
 
     if (entry.isDirectory()) {
-      // Skip excluded folders
-      if (excludedFolderSet.has(entry.name) || excludedFolderSet.has(entry.name.toLowerCase())) {
+      const dirNameLower = entry.name.toLowerCase();
+      // Skip excluded folders and standard doc/build directories
+      if (excludedFolderSet.has(entry.name) || excludedFolderSet.has(dirNameLower) || ['node_modules', 'dist', 'build', 'docs', 'coverage', '.git', '.vscode', '.idea'].includes(dirNameLower)) {
         continue;
       }
       // Skip hidden directories (starting with .)
@@ -113,6 +114,11 @@ function walkDirectory(dirPath, basePath, excludedFolderSet, excludedExtSet, fil
       }
       walkDirectory(fullPath, basePath, excludedFolderSet, excludedExtSet, files);
     } else if (entry.isFile()) {
+      const fileNameLower = entry.name.toLowerCase();
+      if (fileNameLower === 'package-lock.json' || fileNameLower === 'yarn.lock' || fileNameLower === 'pnpm-lock.yaml') {
+        continue;
+      }
+
       const extension = path.extname(entry.name).toLowerCase();
 
       // Skip excluded file types

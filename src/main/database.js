@@ -9,10 +9,14 @@ let db = null;
 
 function initDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'scout.db');
-  db = new Database(dbPath);
-
-  // Enable WAL mode for high performance and concurrent reads/writes
-  db.pragma('journal_mode = WAL');
+  try {
+    db = new Database(dbPath);
+    // Enable WAL mode for high performance and concurrent reads/writes
+    db.pragma('journal_mode = WAL');
+  } catch (err) {
+    console.error('[DB] Failed to initialize SQLite database:', err.message);
+    throw err;
+  }
 
   // Create tables
   db.exec(`
@@ -173,7 +177,7 @@ function getDb() {
 }
 
 function getOrCreateSettings() {
-  const row = db.prepare('SELECT * FROM settings WHERE id = 1').get();
+  const row = db.prepare('SELECT * FROM settings WHERE id = 1 LIMIT 1').get();
   if (!row) {
     const defaultFolders = JSON.stringify(['node_modules', '.git', 'dist', 'build']);
     const defaultTypes = JSON.stringify(['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.mp4', '.mp3', '.wav', '.avi', '.mov', '.ttf', '.woff', '.ico']);
@@ -228,7 +232,7 @@ function saveSettings(settings) {
 }
 
 function getAllProjects() {
-  const rows = db.prepare('SELECT * FROM projects ORDER BY analysisDate DESC, id DESC').all();
+  const rows = db.prepare('SELECT * FROM projects ORDER BY analysisDate DESC, id DESC LIMIT 500').all();
   return rows.map((row) => ({
     ...row,
     selectedCategories: row.selectedCategories ? JSON.parse(row.selectedCategories) : [],
@@ -236,7 +240,7 @@ function getAllProjects() {
 }
 
 function getProjectById(projectId) {
-  const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(Number(projectId));
+  const row = db.prepare('SELECT * FROM projects WHERE id = ? LIMIT 1').get(Number(projectId));
   if (!row) return null;
   return {
     ...row,
@@ -304,7 +308,7 @@ function deleteProject(projectId) {
 }
 
 function getAnalysisResults(projectId) {
-  const rows = db.prepare('SELECT * FROM analysis_results WHERE projectId = ?').all(Number(projectId));
+  const rows = db.prepare('SELECT * FROM analysis_results WHERE projectId = ? LIMIT 100').all(Number(projectId));
   return rows.map((r) => ({
     ...r,
     issues: r.issues ? JSON.parse(r.issues) : [],
@@ -331,7 +335,7 @@ function saveAnalysisResults(projectId, results) {
 }
 
 function getSuggestions(projectId) {
-  const rows = db.prepare('SELECT * FROM suggestions WHERE projectId = ?').all(Number(projectId));
+  const rows = db.prepare('SELECT * FROM suggestions WHERE projectId = ? LIMIT 1000').all(Number(projectId));
   return rows;
 }
 

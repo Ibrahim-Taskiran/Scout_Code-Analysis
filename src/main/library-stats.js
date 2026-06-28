@@ -8,6 +8,9 @@
 const database = require('./database');
 const { scanDirectory } = require('./file-scanner');
 
+const statsCache = new Map();
+const CACHE_TTL_MS = 30000; // 30 seconds cache TTL
+
 /**
  * Get aggregated language statistics from all analyzed projects.
  * Scans each project's folder (if it still exists) to get current language distribution.
@@ -24,20 +27,29 @@ function getLibraryStats() {
   let totalScoreSum = 0;
   let scoredProjectsCount = 0;
 
+  const now = Date.now();
+
   for (const project of projects) {
     if (project.overallScore !== null && project.overallScore !== undefined) {
       totalScoreSum += project.overallScore;
       scoredProjectsCount++;
     }
 
-    // Try to scan the project folder for current stats
+    // Try to scan the project folder for current stats (using cache)
     if (project.folderPath && fs.existsSync(project.folderPath)) {
       try {
-        const result = scanDirectory(
-          project.folderPath,
-          settings.excludedFolders,
-          settings.excludedFileTypes
-        );
+        let result;
+        const cached = statsCache.get(project.folderPath);
+        if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+          result = cached.data;
+        } else {
+          result = scanDirectory(
+            project.folderPath,
+            settings.excludedFolders,
+            settings.excludedFileTypes
+          );
+          statsCache.set(project.folderPath, { data: result, timestamp: now });
+        }
 
         totalFiles += result.totalCount || 0;
         for (const [lang, count] of Object.entries(result.languages)) {

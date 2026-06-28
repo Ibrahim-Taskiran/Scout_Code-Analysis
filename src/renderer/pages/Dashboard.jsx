@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ProjectCard from '../components/ProjectCard';
+import ProjectFolderCard from '../components/ProjectFolderCard';
 import LanguageStats from '../components/LanguageStats';
 import ChatbotPanel from '../components/ChatbotPanel';
 import { useDatabase } from '../hooks/useDatabase';
@@ -27,11 +27,25 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Bu projeyi ve analiz sonuçlarını silmek istediğinize emin misiniz?')) {
+    if (window.confirm('Bu analiz sonucunu silmek istediğinize emin misiniz?')) {
       await deleteProject(id);
       loadData();
     }
   };
+
+  // Group projects by folderPath
+  const folderGroups = {};
+  (projects || []).forEach((proj) => {
+    const normPath = (proj.folderPath || proj.name || 'Bilinmeyen').toLowerCase().trim();
+    if (!folderGroups[normPath]) {
+      folderGroups[normPath] = {
+        folderPath: proj.folderPath || proj.name,
+        runs: [],
+      };
+    }
+    folderGroups[normPath].runs.push(proj);
+  });
+  const groupedList = Object.values(folderGroups);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -58,8 +72,8 @@ export default function Dashboard() {
         {/* Quick Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
           <div className="card" style={{ backgroundColor: 'var(--surface-low)' }}>
-            <span className="text-muted font-mono" style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>{t('dashboard.totalProjects')}</span>
-            <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginTop: '6px', color: 'var(--text-primary)' }}>{projects.length}</h2>
+            <span className="text-muted font-mono" style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>Toplam Proje Klasörü</span>
+            <h2 style={{ fontSize: '2.2rem', fontWeight: 900, marginTop: '6px', color: 'var(--text-primary)' }}>{groupedList.length}</h2>
           </div>
           <div className="card" style={{ backgroundColor: 'var(--surface-low)' }}>
             <span className="text-muted font-mono" style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>{t('dashboard.averageScore')}</span>
@@ -78,7 +92,7 @@ export default function Dashboard() {
           {/* Recent Analyses List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('dashboard.recentAnalyses')}</h3>
-            {projects.length === 0 ? (
+            {groupedList.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
                 <p className="text-muted" style={{ marginBottom: '16px' }}>{t('dashboard.noProjects')}</p>
                 <button className="btn btn-primary" onClick={() => navigate('/analysis')}>
@@ -86,13 +100,14 @@ export default function Dashboard() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                {projects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    onClick={() => navigate(`/results/${project.id}`)}
-                    onDelete={handleDelete}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {groupedList.map((group, idx) => (
+                  <ProjectFolderCard
+                    key={idx}
+                    folderPath={group.folderPath}
+                    runs={group.runs}
+                    onSelectRun={(runId) => navigate(`/results/${runId}`)}
+                    onDeleteRun={handleDelete}
                   />
                 ))}
               </div>

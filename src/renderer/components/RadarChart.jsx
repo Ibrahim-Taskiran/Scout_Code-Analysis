@@ -10,11 +10,11 @@ import {
 
 export default function RadarChart({ scores = {} }) {
   const data = [
-    { category: 'Güvenlik', score: scores.security || 0 },
-    { category: 'Performans', score: scores.performance || 0 },
-    { category: 'Kod Kalitesi', score: scores.codeQuality || 0 },
-    { category: 'Test Kapsamı', score: scores.testCoverage || 0 },
-    { category: 'Mimari', score: scores.architecture || 0 },
+    { category: 'Güvenlik', score: scores.security ?? 0 },
+    { category: 'Performans', score: scores.performance ?? 0 },
+    { category: 'Kod Kalitesi', score: scores.codeQuality ?? scores['code-quality'] ?? 0 },
+    { category: 'Test Kapsamı', score: scores.testCoverage ?? scores['test-coverage'] ?? 0 },
+    { category: 'Mimari', score: scores.architecture ?? 0 },
   ];
 
   return (

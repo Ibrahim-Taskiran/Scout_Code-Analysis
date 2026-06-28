@@ -69,6 +69,10 @@ export const AnalysisProvider = ({ children }) => {
     }
   }, []);
 
+  const clearCompletedResults = useCallback(() => {
+    setCompletedResults(null);
+  }, []);
+
   return (
     <AnalysisContext.Provider
       value={{
@@ -79,6 +83,7 @@ export const AnalysisProvider = ({ children }) => {
         completedResults,
         startAnalysis,
         cancelAnalysis,
+        clearCompletedResults,
       }}
     >
       {children}

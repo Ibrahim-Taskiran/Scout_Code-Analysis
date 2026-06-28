@@ -79,10 +79,19 @@ function registerIpcHandlers(mainWindow) {
     const analysisResults = database.getAnalysisResults(projectId);
     const suggestions = database.getSuggestions(projectId);
 
-    // Build category scores map
+    // Build category scores map with key alias normalization
     const categoryScores = {};
     for (const result of analysisResults) {
-      categoryScores[result.category] = result.score;
+      const cat = result.category;
+      categoryScores[cat] = result.score;
+      if (cat === 'code-quality' || cat === 'codeQuality') {
+        categoryScores['code-quality'] = result.score;
+        categoryScores['codeQuality'] = result.score;
+      }
+      if (cat === 'test-coverage' || cat === 'testCoverage') {
+        categoryScores['test-coverage'] = result.score;
+        categoryScores['testCoverage'] = result.score;
+      }
     }
 
     return {
@@ -271,7 +280,36 @@ function registerIpcHandlers(mainWindow) {
     const suggestions = database.getSuggestions(projectId);
 
     const markdown = exportService.exportToMarkdown(project, analysisResults, suggestions);
-    const result = await exportService.saveReport(markdown, project.name);
+    const result = await exportService.saveReport(markdown, project.name, false);
+
+    return result;
+  });
+
+  ipcMain.handle('export:aiPrompt', async (_event, { projectId }) => {
+    const project = database.getProjectById(projectId);
+    if (!project) {
+      throw new Error(`Project ${projectId} not found`);
+    }
+
+    const analysisResults = database.getAnalysisResults(projectId);
+    const suggestions = database.getSuggestions(projectId);
+
+    const markdown = exportService.exportToAiPrompt(project, analysisResults, suggestions);
+    const result = await exportService.saveReport(markdown, project.name, true);
+
+    return result;
+  });
+
+  ipcMain.handle('export:pdf', async (_event, { projectId }) => {
+    const project = database.getProjectById(projectId);
+    if (!project) {
+      throw new Error(`Project ${projectId} not found`);
+    }
+
+    const analysisResults = database.getAnalysisResults(projectId);
+    const suggestions = database.getSuggestions(projectId);
+
+    const result = await exportService.savePdfReport(project, analysisResults, suggestions);
 
     return result;
   });
@@ -351,7 +389,9 @@ function registerIpcHandlers(mainWindow) {
       if (!hasExactModel && availableModels.length > 0) {
         targetModel = availableModels[0].name;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[IPC] Failed to list Ollama models for autofix:', e.message);
+    }
 
     const model = targetModel;
     const result = await autoFixService.generateFix(filePath, issue, code, model);

@@ -28,6 +28,8 @@ const electronAPI = {
 
   // Export
   exportReport: (projectId) => ipcRenderer.invoke('export:report', { projectId }),
+  exportAiPrompt: (projectId) => ipcRenderer.invoke('export:aiPrompt', { projectId }),
+  exportPdf: (projectId) => ipcRenderer.invoke('export:pdf', { projectId }),
 
   // Ollama & Setup
   checkOllama: () => ipcRenderer.invoke('ollama:check'),

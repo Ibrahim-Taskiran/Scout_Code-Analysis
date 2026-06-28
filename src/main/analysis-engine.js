@@ -8,6 +8,7 @@ const { buildAnalysisPrompt } = require('./prompts/analysis-prompt');
 const ollamaService = require('./ollama-service');
 const database = require('./database');
 const { notifyAnalysisComplete } = require('./notification-service');
+const { runQuickScan } = require('./quick-scanner');
 
 /**
  * Cancellation flag and current analysis state.
@@ -20,7 +21,7 @@ let currentProgress = { percent: 0, currentFile: '', fileIndex: 0, totalFiles: 0
  * Start a code analysis on a project folder.
  * @param {Object} config - Analysis configuration
  * @param {string} config.folderPath - Absolute path to the folder to analyze
- * @param {string} config.mode - 'fast' or 'deep'
+ * @param {string} config.mode - 'fast', 'deep', or 'quick'
  * @param {string[]} config.categories - Array of selected category keys
  * @param {Electron.BrowserWindow} mainWindow - Main window for sending progress events
  * @returns {Promise<number>} The created project ID
@@ -33,46 +34,48 @@ async function startAnalysis(config, mainWindow) {
   // Get settings from database
   const settings = database.getSettings();
 
-  // Determine target model based on mode
-  let targetModel = mode === 'deep'
-    ? settings.deepModeModel
-    : settings.fastModeModel;
+  // For quick mode, bypass Ollama model downloads completely
+  let model = null;
+  if (mode !== 'quick') {
+    let targetModel = mode === 'deep'
+      ? settings.deepModeModel
+      : settings.fastModeModel;
 
-  // Verify model exists in Ollama, auto-download if missing
-  try {
-    const availableModels = await ollamaService.listModels();
-    const modelNames = availableModels.map((m) => m.name);
-    const hasExactModel = modelNames.some((n) => n === targetModel || n.startsWith(targetModel));
+    // Verify model exists in Ollama, auto-download if missing
+    try {
+      const availableModels = await ollamaService.listModels();
+      const modelNames = availableModels.map((m) => m.name);
+      const hasExactModel = modelNames.some((n) => n === targetModel || n.startsWith(targetModel));
 
-    if (!hasExactModel) {
-      sendProgress(mainWindow, {
-        percent: 0,
-        currentFile: `Model '${targetModel}' indiriliyor...`,
-        fileIndex: 0,
-        totalFiles: 100,
-      });
-
-      try {
-        await ollamaService.pullModel(targetModel, (prog) => {
-          sendProgress(mainWindow, {
-            percent: prog.percent || 0,
-            currentFile: `Model '${targetModel}' indiriliyor (${prog.status})...`,
-            fileIndex: 0,
-            totalFiles: 100,
-          });
+      if (!hasExactModel) {
+        sendProgress(mainWindow, {
+          percent: 0,
+          currentFile: `Model '${targetModel}' indiriliyor...`,
+          fileIndex: 0,
+          totalFiles: 100,
         });
-      } catch (pullErr) {
-        console.warn(`[AnalysisEngine] Failed to auto-download ${targetModel}: ${pullErr.message}. Falling back.`);
-        if (availableModels.length > 0) {
-          targetModel = availableModels[0].name;
+
+        try {
+          await ollamaService.pullModel(targetModel, (prog) => {
+            sendProgress(mainWindow, {
+              percent: prog.percent || 0,
+              currentFile: `Model '${targetModel}' indiriliyor (${prog.status})...`,
+              fileIndex: 0,
+              totalFiles: 100,
+            });
+          });
+        } catch (pullErr) {
+          console.warn(`[AnalysisEngine] Failed to auto-download ${targetModel}: ${pullErr.message}. Falling back.`);
+          if (availableModels.length > 0) {
+            targetModel = availableModels[0].name;
+          }
         }
       }
+    } catch (err) {
+      console.warn(`[AnalysisEngine] Failed to check models list: ${err.message}`);
     }
-  } catch (err) {
-    console.warn(`[AnalysisEngine] Failed to check models list: ${err.message}`);
+    model = targetModel;
   }
-
-  const model = targetModel;
 
   // Scan directory
   sendProgress(mainWindow, {
@@ -113,6 +116,57 @@ async function startAnalysis(config, mainWindow) {
   });
 
   currentAnalysis = { projectId, folderPath, mode };
+
+  // Quick Scan Execution
+  if (mode === 'quick') {
+    try {
+      const quickRes = runQuickScan(folderPath, files, categories, (idx, total, currentFile) => {
+        sendProgress(mainWindow, {
+          percent: Math.round((idx / total) * 100),
+          currentFile,
+          fileIndex: idx,
+          totalFiles: total,
+        });
+      });
+
+      if (cancelled) {
+        cleanupCancelledAnalysis(projectId);
+        return -1;
+      }
+
+      database.saveAnalysisResults(projectId, quickRes.analysisResults);
+      if (quickRes.allSuggestions.length > 0) {
+        database.saveSuggestions(projectId, quickRes.allSuggestions);
+      }
+      database.updateProject(projectId, { overallScore: quickRes.overallScore });
+
+      const projectData = database.getProjectById(projectId);
+      const savedResults = database.getAnalysisResults(projectId);
+      const savedSuggestions = database.getSuggestions(projectId);
+
+      sendComplete(mainWindow, {
+        projectId,
+        results: {
+          project: projectData,
+          analysisResults: savedResults,
+          suggestions: savedSuggestions,
+          overallScore: quickRes.overallScore,
+          categoryScores: quickRes.finalScores,
+        },
+      });
+
+      notifyAnalysisComplete(projectName, quickRes.overallScore);
+      currentAnalysis = null;
+      return projectId;
+    } catch (err) {
+      if (cancelled) {
+        cleanupCancelledAnalysis(projectId);
+        return -1;
+      }
+      sendError(mainWindow, `Quick scan failed: ${err.message}`);
+      throw err;
+    }
+  }
 
   // Accumulators for results
   const allScores = {};

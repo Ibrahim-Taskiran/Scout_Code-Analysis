@@ -11,14 +11,16 @@ export default function Analysis() {
   const [categories, setCategories] = useState(['security', 'performance', 'codeQuality', 'testCoverage', 'architecture']);
 
   const navigate = useNavigate();
-  const { isAnalyzing, progress, error, completedResults, startAnalysis, cancelAnalysis } = useAnalysis();
+  const { isAnalyzing, progress, error, completedResults, startAnalysis, cancelAnalysis, clearCompletedResults } = useAnalysis();
   const { t } = useLanguage();
 
   useEffect(() => {
     if (completedResults) {
-      navigate(`/results/${completedResults.projectId}`);
+      const targetId = completedResults.projectId;
+      clearCompletedResults();
+      navigate(`/results/${targetId}`);
     }
-  }, [completedResults, navigate]);
+  }, [completedResults, navigate, clearCompletedResults]);
 
   const handleSelectFolder = async () => {
     if (!window.electronAPI) return;
@@ -80,26 +82,70 @@ export default function Analysis() {
             {/* Step 2: Mode Selection */}
             <div className="card" style={{ backgroundColor: 'var(--surface-low)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('analysis.step2Title')}</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {/* Quick Scan Card */}
+                <div
+                  onClick={() => setMode('quick')}
+                  style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: mode === 'quick' ? 'rgba(0, 230, 118, 0.12)' : 'var(--surface-highest)',
+                    border: mode === 'quick' ? '2px solid #00E676' : '1px solid var(--glass-border)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justify: 'space-between',
+                    minHeight: '140px',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#00E676', whiteSpace: 'nowrap' }}>
+                        🚀 {t('analysis.modeQuick')}
+                      </span>
+                      <span className="badge font-mono" style={{ backgroundColor: 'rgba(0, 230, 118, 0.2)', color: '#00E676', flexShrink: 0 }}>
+                        {t('analysis.quickBadge')}
+                      </span>
+                    </div>
+                    <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.4, margin: 0 }}>
+                      {t('analysis.quickDesc')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Fast Scan Card */}
                 <div
                   onClick={() => setMode('fast')}
                   style={{
                     padding: '20px',
                     borderRadius: 'var(--radius-md)',
-                    backgroundColor: mode === 'fast' ? 'rgba(255, 0, 0, 0.1)' : 'var(--surface-highest)',
-                    border: mode === 'fast' ? '2px solid var(--primary)' : '1px solid var(--glass-border)',
+                    backgroundColor: mode === 'fast' ? 'rgba(255, 214, 0, 0.12)' : 'var(--surface-highest)',
+                    border: mode === 'fast' ? '2px solid #FFD600' : '1px solid var(--glass-border)',
                     cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justify: 'space-between',
+                    minHeight: '140px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>⚡ {t('analysis.modeFast').toUpperCase()}</span>
-                    <span className="badge badge-gray font-mono">{t('analysis.fastScan')}</span>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#FFD600', whiteSpace: 'nowrap' }}>
+                        ⚡ {t('analysis.modeFast')}
+                      </span>
+                      <span className="badge font-mono" style={{ backgroundColor: 'rgba(255, 214, 0, 0.2)', color: '#FFD600', flexShrink: 0 }}>
+                        {t('analysis.fastBadge')}
+                      </span>
+                    </div>
+                    <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.4, margin: 0 }}>
+                      {t('analysis.fastDesc')}
+                    </p>
                   </div>
-                  <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-                    {t('analysis.fastDesc')}
-                  </p>
                 </div>
 
+                {/* Deep Scan Card */}
                 <div
                   onClick={() => setMode('deep')}
                   style={{
@@ -108,15 +154,26 @@ export default function Analysis() {
                     backgroundColor: mode === 'deep' ? 'rgba(255, 0, 0, 0.15)' : 'var(--surface-highest)',
                     border: mode === 'deep' ? '2px solid var(--primary)' : '1px solid var(--glass-border)',
                     cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justify: 'space-between',
+                    minHeight: '140px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--primary)' }}>🔍 {t('analysis.modeDeep').toUpperCase()}</span>
-                    <span className="badge badge-red font-mono">{t('analysis.deepArchitect')}</span>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                        🔍 {t('analysis.modeDeep')}
+                      </span>
+                      <span className="badge badge-red font-mono" style={{ flexShrink: 0 }}>
+                        {t('analysis.deepBadge')}
+                      </span>
+                    </div>
+                    <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.4, margin: 0 }}>
+                      {t('analysis.deepDesc')}
+                    </p>
                   </div>
-                  <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-                    {t('analysis.deepDesc')}
-                  </p>
                 </div>
               </div>
             </div>

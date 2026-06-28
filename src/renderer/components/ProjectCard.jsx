@@ -60,8 +60,8 @@ export default function ProjectCard({ project, onClick, onDelete }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        <span className={`badge ${project.mode === 'deep' ? 'badge-red' : 'badge-gray'}`}>
-          {project.mode === 'deep' ? 'DEEP MODE' : 'FAST MODE'}
+        <span className={`badge ${project.mode === 'deep' ? 'badge-red' : 'badge-gray'}`} style={project.mode === 'quick' ? { backgroundColor: 'rgba(0,230,118,0.2)', color: '#00E676' } : {}}>
+          {project.mode === 'deep' ? 'DEEP MODE' : project.mode === 'quick' ? 'QUICK MODE' : 'FAST MODE'}
         </span>
         <span className="text-muted font-mono" style={{ fontSize: '0.75rem' }}>
           📅 {project.analysisDate || 'N/A'}
